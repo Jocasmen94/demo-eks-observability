@@ -9,8 +9,7 @@ metadata:
   name: otel-collector
   namespace: observability
   annotations:
-    # Reemplazar con el output "otel_collector_role_arn" de terraform apply (IRSA)
-    eks.amazonaws.com/role-arn: "arn:aws:iam::<ACCOUNT_ID>:role/demo-eks-observability-otel-collector-irsa"
+    eks.amazonaws.com/role-arn: "${OTEL_COLLECTOR_ROLE_ARN}"
 ---
 apiVersion: opentelemetry.io/v1beta1
 kind: OpenTelemetryCollector
@@ -19,6 +18,7 @@ metadata:
   namespace: observability
 spec:
   mode: deployment
+  image: otel/opentelemetry-collector-contrib:0.113.0
   serviceAccount: otel-collector
   config:
     receivers:

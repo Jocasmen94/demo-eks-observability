@@ -9,6 +9,7 @@ on:
 permissions:
   id-token: write
   contents: read
+  pull-requests: write
 
 env:
   AWS_REGION: us-east-1
@@ -20,6 +21,8 @@ jobs:
     defaults:
       run:
         working-directory: terraform
+    outputs:
+      otel_collector_role_arn: ${{ steps.tf_outputs.outputs.otel_collector_role_arn }}
     steps:
       - uses: actions/checkout@v4
 
@@ -36,11 +39,51 @@ jobs:
 
       - run: terraform validate
 
-      - run: terraform plan -var="github_repo=${{ github.repository }}" -out=tfplan
+      - name: Terraform Plan
+        id: plan
+        run: |
+          terraform plan -no-color -out=tfplan
+          terraform show -no-color tfplan > plan_output.txt
+        continue-on-error: true
+
+      - name: Comment plan on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('terraform/plan_output.txt', 'utf8');
+            const maxLen = 60000;
+            const body = plan.length > maxLen ? plan.slice(0, maxLen) + '\n\n... (truncado)' : plan;
+
+            const output = `#### Terraform Plan \`${{ steps.plan.outcome }}\`
+            <details><summary>Ver plan completo</summary>
+
+            \`\`\`terraform
+            ${body}
+            \`\`\`
+
+            </details>`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            });
+
+      - name: Fail if plan failed
+        if: steps.plan.outcome == 'failure'
+        run: exit 1
 
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: terraform apply -auto-approve tfplan
+
+      - name: Export Terraform outputs
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        id: tf_outputs
+        run: echo "otel_collector_role_arn=$(terraform output -raw otel_collector_role_arn)" >> "$GITHUB_OUTPUT"
 
   deploy-app:
     needs: terraform
@@ -58,7 +101,9 @@ jobs:
         run: aws eks update-kubeconfig --name ${{ env.CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
 
       - name: Deploy observability stack
+        env:
+          OTEL_COLLECTOR_ROLE_ARN: ${{ needs.terraform.outputs.otel_collector_role_arn }}
         run: |
-          kubectl apply -f k8s/otel-collector.yaml
+          envsubst < k8s/otel-collector.yaml | kubectl apply -f -
           kubectl apply -f k8s/demo-app.yaml
           kubectl rollout status deployment/demo-app -n observability --timeout=180s

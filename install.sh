@@ -6,6 +6,8 @@ set -euo pipefail
 # Requiere: kubectl apuntando ya al cluster EKS (aws eks update-kubeconfig).
 
 NAMESPACE=observability
+export OTEL_COLLECTOR_ROLE_ARN
+OTEL_COLLECTOR_ROLE_ARN=$(cd terraform && terraform output -raw otel_collector_role_arn)
 
 echo ">> Creando namespace ${NAMESPACE}"
 kubectl create namespace "${NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
@@ -40,7 +42,7 @@ echo ">> Esperando CRD del OTel Operator"
 kubectl wait --for=condition=Established crd/opentelemetrycollectors.opentelemetry.io --timeout=60s
 
 echo ">> Desplegando Collector + app demo"
-kubectl apply -f k8s/otel-collector.yaml
+envsubst < k8s/otel-collector.yaml | kubectl apply -f -
 kubectl apply -f k8s/demo-app.yaml
 
 echo ">> Listo. Verifica con: kubectl get pods -n ${NAMESPACE}"
