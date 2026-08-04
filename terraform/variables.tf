@@ -13,7 +13,7 @@ variable "project_name" {
 variable "cluster_version" {
   description = "Version de Kubernetes para el cluster EKS. Intencionalmente en 1.31 (EXTENDED_SUPPORT, fuera de las ultimas 3 versiones STANDARD_SUPPORT) para demostrar el ciclo de upgrade via pipeline."
   type        = string
-  default     = "1.32" #1.31
+  default     = "1.33" #1.31
 }
 
 variable "vpc_cidr" {
