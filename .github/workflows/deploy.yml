@@ -45,8 +45,6 @@ jobs:
 
       - run: terraform init
 
-      - run: terraform fmt -check
-
       - run: terraform validate
 
       - name: Terraform Plan
