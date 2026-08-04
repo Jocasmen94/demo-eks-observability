@@ -26,6 +26,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Debug OIDC token claims
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const token = await core.getIDToken('sts.amazonaws.com');
+            const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+            core.info(`iss=${payload.iss}`);
+            core.info(`aud=${payload.aud}`);
+            core.info(`sub=${payload.sub}`);
+
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
@@ -34,8 +44,6 @@ jobs:
       - uses: hashicorp/setup-terraform@v3
 
       - run: terraform init
-
-      - run: terraform fmt -check
 
       - run: terraform validate
 

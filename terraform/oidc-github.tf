@@ -25,7 +25,17 @@ resource "aws_iam_role" "github_actions" {
           "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
         }
         StringLike = {
-          "token.actions.githubusercontent.com:sub" = "repo:${var.github_repo}:ref:refs/heads/${var.github_branch}"
+          # Esta cuenta tiene activado "immutable IDs" hardening de GitHub:
+          # el sub claim real es repo:owner@ownerId/repo@repoId:... en vez de
+          # repo:owner/repo:... — se usa wildcard para no hardcodear los IDs.
+          # push a main: sub = repo:org@id/repo@id:ref:refs/heads/main
+          # pull_request hacia main: sub = repo:org@id/repo@id:pull_request
+          "token.actions.githubusercontent.com:sub" = [
+            "repo:${var.github_repo}:ref:refs/heads/${var.github_branch}",
+            "repo:${var.github_repo}:pull_request",
+            "repo:${split("/", var.github_repo)[0]}@*/${split("/", var.github_repo)[1]}@*:ref:refs/heads/${var.github_branch}",
+            "repo:${split("/", var.github_repo)[0]}@*/${split("/", var.github_repo)[1]}@*:pull_request",
+          ]
         }
       }
     }]
