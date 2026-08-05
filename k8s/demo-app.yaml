@@ -14,6 +14,11 @@ spec:
     metadata:
       labels:
         app: demo-app
+      annotations:
+        # Mismo patron que boxful-tracking/kubernetes/prd/deployment.yml
+        # (inject-nodejs: "true") pero para Python. El Operator busca el CR
+        # Instrumentation en el mismo namespace automaticamente.
+        instrumentation.opentelemetry.io/inject-python: "true"
     spec:
       containers:
         - name: demo-app
@@ -21,21 +26,21 @@ spec:
           command: ["/bin/sh", "-c"]
           args:
             - |
-              pip install --no-cache-dir flask opentelemetry-distro opentelemetry-exporter-otlp && \
-              opentelemetry-bootstrap -a install && \
-              opentelemetry-instrument python app.py
+              pip install --no-cache-dir flask && \
+              python app.py
           workingDir: /app
           ports:
             - containerPort: 5000
           env:
             - name: OTEL_SERVICE_NAME
               value: demo-app
-            - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: http://otel-collector-collector.observability.svc.cluster.local:4317
-            - name: OTEL_METRICS_EXPORTER
-              value: otlp
-            - name: OTEL_TRACES_EXPORTER
-              value: otlp
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
           volumeMounts:
             - name: app-code
               mountPath: /app
