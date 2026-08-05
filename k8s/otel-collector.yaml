@@ -47,3 +47,25 @@ spec:
           receivers: [otlp]
           processors: [batch]
           exporters: [prometheus]
+---
+apiVersion: opentelemetry.io/v1alpha1
+kind: Instrumentation
+metadata:
+  name: python-instrumentation
+  namespace: observability
+spec:
+  exporter:
+    # Python auto-instrumentation manda OTLP via HTTP por default
+    # (OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf) — el puerto 4317 del
+    # Collector es gRPC, hay que usar el puerto HTTP (4318) o falla en
+    # silencio y nunca llegan spans a Tempo.
+    endpoint: http://otel-collector-collector.observability.svc.cluster.local:4318
+  propagators:
+    - tracecontext
+    - baggage
+  sampler:
+    type: parentbased_always_on
+  python:
+    env:
+      - name: OTEL_METRICS_EXPORTER
+        value: otlp
