@@ -124,6 +124,7 @@ kubectl run curl-loop --image=curlimages/curl -n observability --restart=Never -
 ```bash
 kubectl port-forward -n observability svc/kube-prometheus-stack-grafana 3000:80
 ```
+otel collector prometheusreceiver y prometheusexporter
 
 Ir a `http://localhost:3000` — usuario `admin` / password `admin` (definido en `helm-values/kube-prometheus-stack-values.yaml`).
 
